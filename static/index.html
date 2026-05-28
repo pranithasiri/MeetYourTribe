@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event AI MeetYourTribe& Networking Hub</title>
+    <!-- Google Fonts: Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="dark-theme">
+    <!-- Background Elements -->
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div class="ambient-glow glow-3"></div>
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="header-logo">
+                <div class="logo-icon">
+                    <img src="/static/assets/logo.png" alt="MeetYourTribe Logo">
+                </div>
+                <div class="logo-text">
+                    <h1>MeetYourTribe</h1>
+                    <p class="subtitle">AI Conference Networking Hub</p>
+                </div>
+            </div>
+            <div class="header-controls">
+                <button class="btn btn-secondary" onclick="window.location.href='/'">
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <div class="main-layout">
+            
+            <!-- LEFT SIDEBAR: PROFILE & MEETINGS -->
+            <aside class="sidebar">
+                
+                <!-- CURRENT USER PROFILE PANEL -->
+                <section class="sidebar-card user-profile-card">
+                    <div class="user-profile-header">
+                        <div class="avatar-container">
+                            <img id="user-avatar" src="https://api.dicebear.com/7.x/adventurer/svg?seed=placeholder" alt="User Avatar">
+                        </div>
+                        <div class="user-meta">
+                            <h2 id="user-name">Loading Profile...</h2>
+                            <p id="user-title">Job Title</p>
+                            <p id="user-company" class="company-tag">Company</p>
+                        </div>
+                    </div>
+                    <div class="user-bio-container">
+                        <p id="user-bio" class="bio-text">Loading bio details...</p>
+                    </div>
+                    <div class="profile-details">
+                        <div class="details-section">
+                            <h3>Interests</h3>
+                            <div id="user-interests-tags" class="tag-container">
+                                <!-- Tags dynamically loaded -->
+                            </div>
+                        </div>
+                        <div class="details-section">
+                            <h3>Tech Needs</h3>
+                            <div id="user-needs-tags" class="tag-container highlight">
+                                <!-- Tags dynamically loaded -->
+                            </div>
+                        </div>
+                    </div>
+                    <button id="btn-edit-profile" class="btn btn-primary btn-full-width">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        Edit My Profile
+                    </button>
+                </section>
+
+                <!-- REAL-TIME SCHEDULER PANEL -->
+                <section class="sidebar-card meetings-card">
+                    <div class="card-header">
+                        <h2>My Meeting Schedule</h2>
+                        <span class="count-badge" id="meetings-count">0</span>
+                    </div>
+                    <div id="meetings-list" class="meetings-list-container">
+                        <!-- Loaded dynamically -->
+                        <div class="empty-state">
+                            <p>No meetings scheduled yet.</p>
+                        </div>
+                    </div>
+                </section>
+            </aside>
+
+            <!-- RIGHT MAIN PANEL: TABS & CONTENT -->
+            <main class="content-panel">
+                <!-- NAVIGATION TABS -->
+                <nav class="app-tabs">
+                    <button class="tab-btn active" data-tab="matches">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        Smart Matches
+                    </button>
+                    <button class="tab-btn" data-tab="groups">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></svg>
+                        </svg>
+                        Networking Groups
+                    </button>
+                    <button class="tab-btn" data-tab="followup">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                        Follow-up Hub
+                    </button>
+                </nav>
+
+                <!-- TAB CONTENT: MATCHES -->
+                <div id="tab-matches" class="tab-pane active">
+                    <div class="pane-header">
+                        <div>
+                            <h2>Recommended Connections</h2>
+                            <p class="pane-subtitle">AI-generated matches based on interests, technology needs, and profile synergy.</p>
+                        </div>
+                        <div class="feedback-info-pill">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            Feedback improves future matches
+                        </div>
+                    </div>
+                    
+                    <div id="matches-grid" class="matches-grid-container">
+                        <!-- Loaded dynamically -->
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Analyzing profiles and calculating similarity scores...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB CONTENT: GROUPS -->
+                <div id="tab-groups" class="tab-pane">
+                    <div class="pane-header">
+                        <div>
+                            <h2>Topic-based Networking Groups</h2>
+                            <p class="pane-subtitle">Small, focused circles targeting highly specific topics or tech needs. Connect in a group discussion.</p>
+                        </div>
+                        <button id="btn-create-group" class="btn btn-secondary">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Create Group
+                        </button>
+                    </div>
+
+                    <div class="groups-sections">
+                        <section class="groups-category">
+                            <h3>Recommended For You</h3>
+                            <div id="recommended-groups-list" class="groups-grid">
+                                <!-- Loaded dynamically -->
+                            </div>
+                        </section>
+
+                        <section class="groups-category">
+                            <h3>All Active Groups</h3>
+                            <div id="all-groups-list" class="groups-grid">
+                                <!-- Loaded dynamically -->
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- TAB CONTENT: FOLLOW-UP -->
+                <div id="tab-followup" class="tab-pane">
+                    <div class="pane-header">
+                        <div>
+                            <h2>Post-Event Follow-up Generator</h2>
+                            <p class="pane-subtitle">Draft personalized follow-up emails for new connections incorporating talking points and meeting context.</p>
+                        </div>
+                    </div>
+                    
+                    <div id="followup-list" class="followup-list-container">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </main>
+
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT / CREATE PROFILE -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2 id="profile-modal-title">Edit Profile</h2>
+                <button class="close-modal-btn" data-close="profile-modal">&times;</button>
+            </div>
+            <form id="profile-form" class="modal-form">
+                <input type="hidden" id="form-profile-id">
+                
+                <div class="form-group row">
+                    <div class="col">
+                        <label for="form-name">Full Name *</label>
+                        <input type="text" id="form-name" required placeholder="Dr. Elena Rostova">
+                    </div>
+                    <div class="col">
+                        <label for="form-company">Company / Organization *</label>
+                        <input type="text" id="form-company" required placeholder="DeepMind Technologies">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-title">Job Title *</label>
+                    <input type="text" id="form-title" required placeholder="Principal Research Scientist">
+                </div>
+
+                <div class="form-group">
+                    <label for="form-bio">Bio * (Short description of your background and focus)</label>
+                    <textarea id="form-bio" required rows="3" placeholder="Working on Large Language Model alignment, RLHF, and agentic workflows..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-interests">Interests * (Comma-separated keywords)</label>
+                    <input type="text" id="form-interests" required placeholder="LLM Alignment, Agentic Workflows, Reinforcement Learning">
+                    <p class="form-tip">Used to compute core alignment scores with other attendees.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-needs">Technology Needs * (Comma-separated keywords / tools you are looking for)</label>
+                    <input type="text" id="form-needs" required placeholder="GPU clusters, Rust deployment frameworks">
+                    <p class="form-tip">Used to match you with providers, partners, or developers.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="form-looking">Looking For * (Specifically describe who you want to meet)</label>
+                    <input type="text" id="form-looking" required placeholder="Collaborators on multi-agent frameworks, AI safety researchers">
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="profile-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: SCHEDULE MEETING -->
+    <div id="schedule-modal" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>Schedule Short Meeting</h2>
+                <button class="close-modal-btn" data-close="schedule-modal">&times;</button>
+            </div>
+            <form id="schedule-form" class="modal-form">
+                <input type="hidden" id="schedule-invitee-id">
+                
+                <div class="meeting-target-summary">
+                    <div class="avatar-small">
+                        <img id="schedule-invitee-avatar" src="" alt="Invitee Avatar">
+                    </div>
+                    <div>
+                        <h3 id="schedule-invitee-name">Attendee Name</h3>
+                        <p id="schedule-invitee-job">Title & Company</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="schedule-time">Select Time Slot *</label>
+                    <div class="custom-select-wrapper">
+                        <select id="schedule-time" required>
+                            <option value="13:00 - 13:15">13:00 - 13:15 (Day 1 Afternoon)</option>
+                            <option value="13:20 - 13:35">13:20 - 13:35 (Day 1 Afternoon)</option>
+                            <option value="13:40 - 13:55">13:40 - 13:55 (Day 1 Afternoon)</option>
+                            <option value="14:00 - 14:15">14:00 - 14:15 (Day 1 Afternoon)</option>
+                            <option value="14:20 - 14:35">14:20 - 14:35 (Day 1 Afternoon)</option>
+                            <option value="14:40 - 14:55">14:40 - 14:55 (Day 1 Afternoon)</option>
+                            <option value="15:00 - 15:15">15:00 - 15:15 (Day 1 Coffee Break)</option>
+                            <option value="15:20 - 15:35">15:20 - 15:35 (Day 1 Coffee Break)</option>
+                            <option value="16:00 - 16:15">16:00 - 16:15 (Day 1 Evening)</option>
+                            <option value="16:20 - 16:35">16:20 - 16:35 (Day 1 Evening)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="schedule-location">Suggested Venue Location *</label>
+                    <div class="custom-select-wrapper">
+                        <select id="schedule-location" required>
+                            <option value="Networking Lounge (Zone A)">Networking Lounge (Zone A)</option>
+                            <option value="Networking Lounge (Zone B - Glass Tables)">Networking Lounge (Zone B - Glass Tables)</option>
+                            <option value="Demo Hall (Booth #14 - AI Playgrounds)">Demo Hall (Booth #14 - AI Playgrounds)</option>
+                            <option value="Main Lobby Coffee Stand">Main Lobby Coffee Stand</option>
+                            <option value="Quiet Meeting Pod 1">Quiet Meeting Pod 1</option>
+                            <option value="Quiet Meeting Pod 2">Quiet Meeting Pod 2</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="schedule-notes">Short Note / Proposed Topic (Optional)</label>
+                    <textarea id="schedule-notes" rows="2" placeholder="Let's chat about agent coordination and potential scaling bottlenecks."></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="schedule-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Invitation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CREATE GROUP -->
+    <div id="group-modal" class="modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>Create Topic Group</h2>
+                <button class="close-modal-btn" data-close="group-modal">&times;</button>
+            </div>
+            <form id="group-form" class="modal-form">
+                <div class="form-group">
+                    <label for="group-name">Group Name *</label>
+                    <input type="text" id="group-name" required placeholder="vLLM Inference Hackers">
+                </div>
+
+                <div class="form-group">
+                    <label for="group-topic">Core Topics * (Comma-separated)</label>
+                    <input type="text" id="group-topic" required placeholder="vLLM, Model Quantization, Cloud Servicing">
+                </div>
+
+                <div class="form-group">
+                    <label for="group-desc">Description *</label>
+                    <textarea id="group-desc" required rows="3" placeholder="A small breakout group to share custom optimizations, serverless setups, and cost reduction strategies for high-throughput model endpoints."></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-close="group-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create and Join</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION SYSTEM -->
+    <div id="notification-toast" class="toast"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

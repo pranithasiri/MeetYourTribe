@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - MeetYourTribe</title>
+
+    <link rel="stylesheet" href="/static/css/auth.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="auth-page">
+
+    <div class="auth-container">
+
+        <div class="auth-left">
+
+            <div class="brand">
+                <div class="logo-icon">M</div>
+                <span>MeetYourTribe</span>
+            </div>
+
+            <div class="auth-subtitle">WELCOME BACK</div>
+
+            <h1 class="auth-title">
+                Login to your <span>Account.</span>
+            </h1>
+
+            <p class="auth-description">
+                Continue building meaningful conference connections with AI-powered networking.
+            </p>
+
+            <p class="auth-switch">
+                New here?
+                <a href="/signup">Create your profile</a>
+            </p>
+
+            <form class="auth-form" id="loginForm">
+
+                <div class="input-group">
+                    <input type="email" id="loginEmail" placeholder="Email Address" required>
+                </div>
+
+                <div class="input-group">
+                    <input type="password" id="loginPassword" placeholder="Password" required>
+                </div>
+
+                <div class="button-row">
+                    <button type="submit" class="primary-btn">Login</button>
+
+                    <button type="button" class="secondary-btn" onclick="window.location.href='/'">
+                        Back Home
+                    </button>
+                </div>
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+document.getElementById("loginForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const email = document.getElementById("loginEmail").value;
+    const password = document.getElementById("loginPassword").value;
+
+    const response = await fetch("/api/login", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            email: email,
+            password: password
+        })
+    });
+
+    if (response.ok) {
+        window.location.href = "/dashboard";
+    } else {
+        alert("Invalid email or password");
+    }
+});
+</script>
+
+</body>
+</html>
