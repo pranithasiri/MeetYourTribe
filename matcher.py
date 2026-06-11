@@ -86,30 +86,38 @@ def get_tf_idf_vectors(profiles):
     
     return interests_vectors, needs_vectors, bio_vectors
 
-def compute_profile_matches(active_profile_id):
+def compute_profile_matches(active_profile_id, event_id=None):
     conn = database.get_db_connection()
     cursor = conn.cursor()
     
-    # Get all profiles
-    cursor.execute("SELECT * FROM profiles")
-    all_profiles = [dict(row) for row in cursor.fetchall()]
+    # Get the active profile
+    cursor.execute("SELECT * FROM profiles WHERE id = ?", (active_profile_id,))
+    active_row = cursor.fetchone()
+    if not active_row:
+        conn.close()
+        return []
+    active_profile = dict(active_row)
     
-    # If not enough profiles, return empty
-    if len(all_profiles) < 2:
+    # Get candidate profiles based on event membership
+    if event_id:
+        # Only match against other attendees of the same event
+        cursor.execute("""
+            SELECT p.* FROM profiles p
+            JOIN event_members em ON p.id = em.profile_id
+            WHERE em.event_id = ? AND p.id != ?
+        """, (event_id, active_profile_id))
+    else:
+        # No event filter — match against all profiles
+        cursor.execute("SELECT * FROM profiles WHERE id != ?", (active_profile_id,))
+    
+    other_profiles = [dict(row) for row in cursor.fetchall()]
+    
+    if not other_profiles:
         conn.close()
         return []
-        
-    active_profile = None
-    other_profiles = []
-    for p in all_profiles:
-        if p['id'] == active_profile_id:
-            active_profile = p
-        else:
-            other_profiles.append(p)
-            
-    if not active_profile:
-        conn.close()
-        return []
+    
+    # Build the full list for TF-IDF computation (active + others)
+    all_profiles = [active_profile] + other_profiles
 
     # Get vectors
     int_vecs, need_vecs, bio_vecs = get_tf_idf_vectors(all_profiles)

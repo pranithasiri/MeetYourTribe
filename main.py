@@ -318,8 +318,8 @@ def update_profile(profile_id: int, profile: ProfileUpdate):
 
 
 @app.get("/api/profiles/{profile_id}/matches")
-def get_matches(profile_id: int):
-    return matcher.compute_profile_matches(profile_id)
+def get_matches(profile_id: int, event_id: Optional[int] = None):
+    return matcher.compute_profile_matches(profile_id, event_id=event_id)
 
 
 @app.get("/api/profiles/{profile_id}/groups")

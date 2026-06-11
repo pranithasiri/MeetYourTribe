@@ -119,137 +119,47 @@ CREATE TABLE IF NOT EXISTS events (
     )
     """)
 
-    # Seed mock data if profiles is empty
+    # Import existing non-mock users from CSV if profiles table is empty
     cursor.execute("SELECT COUNT(*) FROM profiles")
-    if cursor.fetchone()[0] == 0:
-        seed_profiles = [
-            (
-                "Dr. Elena Rostova",
-                "elena.rostova@deepmind.example.com",
-                "password123",
-                "DeepMind Technologies",
-                "Principal Research Scientist",
-                "Working on Large Language Model alignment, RLHF, and agentic workflows. Former researcher at OpenAI and MIT AI Lab.",
-                "LLM Alignment, Agentic Workflows, Reinforcement Learning, Cognitive Architecture",
-                "High-performance GPU cluster access, Rust deployment frameworks",
-                "Collaborators on multi-agent collaboration frameworks and ethicists working on AI safety.",
-                "https://api.dicebear.com/7.x/adventurer/svg?seed=Elena"
-            ),
-            (
-                "Aravind Reddy",
-                "aravind.reddy@apexventures.example.com",
-                "password123",
-                "Apex Ventures",
-                "General Partner",
-                "Investing in seed and early-stage generative AI startups. Passionate about developer tools and vertical SaaS applications using LLMs.",
-                "Venture Capital, Seed Investing, Developer Tools, Vertical AI, SaaS scaling",
-                "High-quality startup pitch decks, Tech founders in stealth mode",
-                "Stealth-mode founders building core AI infrastructure or developer tools who need initial funding and strategic growth planning.",
-                "https://api.dicebear.com/7.x/adventurer/svg?seed=Aravind"
-            ),
-            (
-                "Sarah Jenkins",
-                "sarah.jenkins@medtech.example.com",
-                "password123",
-                "MedTech Solutions Inc.",
-                "Director of AI Strategy & Clinical Products",
-                "Driving AI integration into digital healthcare. Focused on clinical decision support, HIPAA-compliant patient report summarization, and medical imaging analysis.",
-                "Healthcare AI, HIPAA Compliance, Medical Imaging, Patient Summarization, Digital Health",
-                "Privacy-preserving AI architectures, Medical NLP models, Federated learning engines",
-                "AI engineers with experience in health-tech, data compliance officers, and medical researchers.",
-                "https://api.dicebear.com/7.x/adventurer/svg?seed=Sarah"
-            ),
-            (
-                "Hiroshi Tanaka",
-                "hiroshi.tanaka@canvasflow.example.com",
-                "password123",
-                "CanvasFlow AI",
-                "Lead Frontend & UX Architect",
-                "Building interactive playgrounds and visual design systems for prompt engineering, model tuning, and multi-modal canvas layouts.",
-                "UX Design, Prompt Engineering UI, WebGL, Canvas API, Frontend Architecture",
-                "Lightweight client-side model runners, Vector search visualization tools",
-                "Product designers and backend AI engineers building LLM-integrated canvas interfaces.",
-                "https://api.dicebear.com/7.x/adventurer/svg?seed=Hiroshi"
-            ),
-            (
-                "Liam O'Connor",
-                "liam.oconnor@agenticlabs.example.com",
-                "password123",
-                "Agentic Labs",
-                "Co-Founder & CTO",
-                "Building a developer platform for autonomous AI software engineers. Focused on code synthesis, repository editing, and local execution sandboxes.",
-                "Autonomous Agents, Code Synthesis, Development Sandboxes, DevOps Automation",
-                "Reliable API integrations, Sandboxed execution microservices, LLM code fine-tuning",
-                "Talented software developers interested in agentic frameworks, and potential enterprise beta-testers.",
-                "https://api.dicebear.com/7.x/adventurer/svg?seed=Liam"
-            ),
-            (
-                "Emily Chen",
-                "emily.chen@orbitscale.example.com",
-                "password123",
-                "OrbitScale Cloud",
-                "Principal Solutions Architect",
-                "Specializing in distributed computing, multi-GPU model serving, vLLM optimization, and green computing strategies for massive AI inference clusters.",
-                "vLLM Optimization, Cloud Infrastructure, Multi-GPU Serving, Green AI, Distributed Computing",
-                "Hardware acceleration chips, Model quantization libraries, Kubernetes orchestration",
-                "Startups and enterprises struggling to scale their LLM inference performance while keeping cost and carbon footprint down.",
-                "https://api.dicebear.com/7.x/adventurer/svg?seed=Emily"
-            ),
-            (
-                "Marcus Vance",
-                "marcus.vance@vancepartners.example.com",
-                "password123",
-                "Vance & Partners Legal",
-                "Managing Partner - Tech & AI Policy",
-                "Advising tech giants and fast-growing startups on AI regulations, copyright compliance in dataset curation, and data privacy compliance.",
-                "AI Regulation, Copyright Compliance, Data Privacy, EU AI Act, Intellectual Property",
-                "Auditing tools for training datasets, Bias detection engines",
-                "Founders and Chief Compliance Officers seeking legal frameworks for generative AI models and dataset licensing advice.",
-                "https://api.dicebear.com/7.x/adventurer/svg?seed=Marcus"
-            ),
-            (
-                "Priya Sharma",
-                "priya.sharma@omniretail.example.com",
-                "password123",
-                "OmniRetail Global",
-                "Senior Director of Engineering",
-                "Integrating AI capabilities into customer support automation, catalog search systems, and personalization models for multi-million user retail apps.",
-                "E-Commerce AI, Customer Support Bots, Personalization Engines, Search Recommenders",
-                "RAG architectures, Hybrid semantic search, Guardrails for customer-facing chatbots",
-                "Providers of advanced recommendation algorithms, reliable vector databases, and RAG guardrail solutions.",
-                "https://api.dicebear.com/7.x/adventurer/svg?seed=Priya"
-            )
-        ]
-        
-        cursor.executemany("""
-        INSERT INTO profiles (name, email, password, company, job_title, bio, interests, tech_needs, looking_for, avatar_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, seed_profiles)
-        
-        # Seed initial groups
-        seed_groups = [
-            ("LLM Alignment & Safety", "LLM Alignment, AI Regulation", "Discussion on RLHF, RLAIF, and complying with global AI acts.", 1),
-            ("Scaling Autonomous Agents", "Agentic Workflows, Autonomous Agents", "Focus on building stable, self-healing developer agents and sandboxing.", 5),
-            ("AI Inference at Scale", "vLLM Optimization, Cloud Infrastructure", "Techniques for low-latency serving, model quantization, and serverless hosting.", 6)
-        ]
-        
-        cursor.executemany("""
-        INSERT INTO groups (name, topic, description, created_by)
-        VALUES (?, ?, ?, ?)
-        """, seed_groups)
-        
-        # Seed group memberships
-        cursor.execute("INSERT INTO group_members (group_id, profile_id) VALUES (1, 1)") # Elena in Alignment
-        cursor.execute("INSERT INTO group_members (group_id, profile_id) VALUES (1, 7)") # Marcus in Alignment
-        cursor.execute("INSERT INTO group_members (group_id, profile_id) VALUES (2, 1)") # Elena in Agents
-        cursor.execute("INSERT INTO group_members (group_id, profile_id) VALUES (2, 5)") # Liam in Agents
-        cursor.execute("INSERT INTO group_members (group_id, profile_id) VALUES (3, 6)") # Emily in Inference
-        cursor.execute("INSERT INTO group_members (group_id, profile_id) VALUES (3, 8)") # Priya in Inference
+    if cursor.fetchone()[0] == 0 and os.path.exists(CSV_PATH):
+        mock_names = {
+            "Dr. Elena Rostova",
+            "Aravind Reddy",
+            "Sarah Jenkins",
+            "Hiroshi Tanaka",
+            "Liam O'Connor",
+            "Emily Chen",
+            "Marcus Vance",
+            "Priya Sharma"
+        }
+        try:
+            with open(CSV_PATH, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if row.get('name') not in mock_names:
+                        cursor.execute("""
+                        INSERT OR IGNORE INTO profiles 
+                        (id, name, email, company, job_title, bio, interests, tech_needs, looking_for, avatar_url)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            row.get('id'),
+                            row.get('name'),
+                            row.get('email'),
+                            row.get('company'),
+                            row.get('job_title'),
+                            row.get('bio'),
+                            row.get('interests'),
+                            row.get('tech_needs'),
+                            row.get('looking_for'),
+                            row.get('avatar_url')
+                        ))
+        except Exception as e:
+            print(f"Error importing from CSV: {e}")
 
     conn.commit()
     conn.close()
     
-    # Export seed profiles to CSV on startup
+    # Export profiles to CSV on startup (preserves any existing data)
     export_profiles_csv()
 
 # Helper DB Functions
@@ -470,8 +380,7 @@ def join_event(profile_id, event_name, location=""):
             """,
             (event_name, location)
         )
-
-    event_id = cursor.lastrowid
+        event_id = cursor.lastrowid
 
     cursor.execute("""
         INSERT OR IGNORE INTO event_members
@@ -635,9 +544,6 @@ def export_profiles_csv():
     cursor.execute("SELECT id, name, email, company, job_title, bio, interests, tech_needs, looking_for, avatar_url FROM profiles")
     rows = cursor.fetchall()
     conn.close()
-    
-    if not rows:
-        return
     
     with open(CSV_PATH, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)

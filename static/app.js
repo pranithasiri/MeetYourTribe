@@ -40,8 +40,10 @@ const API = {
         });
         return res.json();
     },
-    async getMatches(userId) {
-        const res = await fetch(`/api/profiles/${userId}/matches`);
+    async getMatches(userId, eventId = null) {
+        let url = `/api/profiles/${userId}/matches`;
+        if (eventId) url += `?event_id=${eventId}`;
+        const res = await fetch(url);
         return res.json();
     },
     async submitFeedback(feedbackData) {
@@ -317,10 +319,10 @@ async function joinSelectedEvent() {
         return;
     }
 
-    const eventName =
-        select.options[
-            select.selectedIndex
-        ].text;
+    const eventId = select.value;
+    // Extract just the event name (before the " — " separator)
+    const fullText = select.options[select.selectedIndex].text;
+    const eventName = fullText.split(' \u2014 ')[0].trim();
 
     const response =
         await fetch('/api/events/join', {
@@ -343,6 +345,9 @@ async function joinSelectedEvent() {
         `Joined ${eventName}`,
         'success'
     );
+
+    // Reload matches filtered to this event
+    await loadSmartMatches();
 }
 
 async function createNewEvent() {
@@ -365,30 +370,30 @@ async function createNewEvent() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-    profile_id: state.currentUserId,
-    event_name: eventName,
-    location: location
-})
+            profile_id: state.currentUserId,
+            event_name: eventName,
+            location: location
+        })
     });
 
     await loadEvents();
 
-    await loadEvents();
+    const select =
+        document.getElementById('eventSelect');
 
-const select =
-    document.getElementById('eventSelect');
-
-for (let i = 0; i < select.options.length; i++) {
-
-    if (
-        select.options[i].text === eventName
-    ) {
-        select.selectedIndex = i;
-        break;
+    // Select the newly created event in the dropdown
+    for (let i = 0; i < select.options.length; i++) {
+        // Match by event name prefix (before the " — " separator)
+        const optText = select.options[i].text;
+        if (optText.split(' \u2014 ')[0].trim() === eventName.trim()) {
+            select.selectedIndex = i;
+            break;
+        }
     }
-}
 
-closeModal('event-modal');
+    document.getElementById('newEventName').value = '';
+    document.getElementById('newEventLocation').value = '';
+    closeModal('event-modal');
 
     showToast(
         'Event added successfully!',
@@ -425,15 +430,21 @@ async function loadSmartMatches() {
     `;
     
     try {
-        state.matches = await API.getMatches(state.currentUserId);
+        // Get the currently selected event from dropdown
+        const eventSelect = document.getElementById('eventSelect');
+        const selectedEventId = (eventSelect && eventSelect.value && eventSelect.value !== 'new_event')
+            ? parseInt(eventSelect.value)
+            : null;
+
+        state.matches = await API.getMatches(state.currentUserId, selectedEventId);
         
         if (state.matches.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    <h3>No other profiles in event database</h3>
-                    <p>Invite more attendees to join the conference platform. to create a second attendee to match against.</p>
-                </div>
-            `;
+            const emptyMsg = selectedEventId
+                ? `<h3>No other attendees in this event yet</h3>
+                   <p>Be the first! Invite more people to join this event to see smart matches.</p>`
+                : `<h3>Join an event to see matches</h3>
+                   <p>Select an event from the dropdown above and click "Join Selected Event" to find people attending the same event.</p>`;
+            grid.innerHTML = `<div class="empty-state">${emptyMsg}</div>`;
             return;
         }
         
@@ -744,13 +755,17 @@ document.addEventListener('DOMContentLoaded', () => {
      
     document
     .getElementById('eventSelect')
-    .addEventListener('change', function () {
+    .addEventListener('change', async function () {
 
         if (this.value === 'new_event') {
 
             document.getElementById('newEventName').value = '';
+            document.getElementById('newEventLocation').value = '';
 
             openModal('event-modal');
+        } else if (state.activeTab === 'matches') {
+            // Reload matches for the newly selected event
+            await loadSmartMatches();
         }
     });
     // 2. Tab Navigation clicks
@@ -761,15 +776,6 @@ document.addEventListener('DOMContentLoaded', () => {
             target.classList.add('active');
             state.activeTab = target.dataset.tab;
             await refreshActiveTab();
-            document
-            .getElementById('eventSelect')
-            .addEventListener('change', async function () {
-
-                if (this.value === 'new_event') {
-
-                    openModal('event-modal');
-                }
-            });
         });
     });
 
