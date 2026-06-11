@@ -6,6 +6,7 @@ const state = {
     matches: [],
     meetings: [],
     groups: [],
+    userGroupIds: [],
     activeTab: 'matches'
 };
 
@@ -30,6 +31,12 @@ const API = {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(profileData)
+        });
+        return res.json();
+    },
+    async actAs(profileId) {
+        const res = await fetch(`/api/act-as/${profileId}`, {
+            method: 'POST'
         });
         return res.json();
     },
@@ -97,6 +104,10 @@ const API = {
         });
         return res.json();
     },
+    async getUserGroups(userId) {
+        const res = await fetch(`/api/profiles/${userId}/groups`);
+        return res.json();
+    },
     async generateFollowup(fromId, toId, meetingId) {
         const res = await fetch('/api/followup', {
             method: 'POST',
@@ -149,6 +160,9 @@ function openModal(modalId) {
     document.getElementById(modalId).classList.add('active');
 }
 
+function openJoinEventModal() {
+    openModal('event-modal');
+}
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
 }
@@ -157,11 +171,12 @@ function closeModal(modalId) {
 // CORE DATA CONTROLLERS & RENDERING
 // ==========================================================================
 
-// 1. Initialize session and dropdown
+// 1. Initialize session
 async function initSession() {
     try {
         const sessionData = await API.getSession();
         state.currentUserId = sessionData.current_user_id;
+        
         await refreshUserData();
     } catch (err) {
         showToast('Error connecting to backend database server', 'error');
@@ -184,7 +199,10 @@ async function refreshUserData() {
         renderBadges('user-interests-tags', state.currentUserProfile.interests);
         renderBadges('user-needs-tags', state.currentUserProfile.tech_needs, 'tag');
         
+        // No dropdown switcher to update
+        
         // Trigger parallel reloads of active tab content
+        await loadEvents();
         await loadSidebarMeetings();
         await refreshActiveTab();
     } catch (err) {
@@ -192,6 +210,38 @@ async function refreshUserData() {
     }
 }
 
+
+async function loadEvents() {
+
+    const response = await fetch('/api/events');
+
+    const events = await response.json();
+
+    const select =
+        document.getElementById('eventSelect');
+
+    select.innerHTML = '';
+
+    events.forEach(event => {
+
+        const option =
+            document.createElement('option');
+
+        option.value = event.id;
+        option.textContent =
+    `${event.name} — ${event.location || 'Location TBD'}`;  
+
+        select.appendChild(option);
+    });
+
+    const addOption =
+        document.createElement('option');
+
+    addOption.value = 'new_event';
+    addOption.textContent = '+ My Event Is Not Listed';
+
+    select.appendChild(addOption);
+}
 // Load meeting list in the sidebar
 async function loadSidebarMeetings() {
     const list = document.getElementById('meetings-list');
@@ -256,6 +306,96 @@ async function loadSidebarMeetings() {
         list.appendChild(item);
     });
 }
+
+async function joinSelectedEvent() {
+
+    const select =
+        document.getElementById('eventSelect');
+
+    if (select.value === 'new_event') {
+        openModal('event-modal');
+        return;
+    }
+
+    const eventName =
+        select.options[
+            select.selectedIndex
+        ].text;
+
+    const response =
+        await fetch('/api/events/join', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                profile_id: state.currentUserId,
+                event_name: eventName
+            })
+        });
+
+    const result =
+        await response.json();
+
+    console.log(result);
+
+    showToast(
+        `Joined ${eventName}`,
+        'success'
+    );
+}
+
+async function createNewEvent() {
+
+    const eventName =
+        document.getElementById(
+            'newEventName'
+        ).value;
+    const location =
+    document.getElementById(
+        'newEventLocation'
+    ).value;
+    if (!eventName.trim()) {
+        return;
+    }
+
+    await fetch('/api/events/join', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+    profile_id: state.currentUserId,
+    event_name: eventName,
+    location: location
+})
+    });
+
+    await loadEvents();
+
+    await loadEvents();
+
+const select =
+    document.getElementById('eventSelect');
+
+for (let i = 0; i < select.options.length; i++) {
+
+    if (
+        select.options[i].text === eventName
+    ) {
+        select.selectedIndex = i;
+        break;
+    }
+}
+
+closeModal('event-modal');
+
+    showToast(
+        'Event added successfully!',
+        'success'
+    );
+}
+
 
 // Refresh the current tab data
 async function refreshActiveTab() {
@@ -440,6 +580,8 @@ async function loadSmartMatches() {
     }
 }
 
+
+
 // 3. Tab Content Loader: Groups
 async function loadGroups() {
     const recommendedList = document.getElementById('recommended-groups-list');
@@ -449,6 +591,9 @@ async function loadGroups() {
     allList.innerHTML = `<div class="spinner" style="margin: 2rem auto;"></div>`;
     
     try {
+        // Fetch user's current group memberships
+        state.userGroupIds = await API.getUserGroups(state.currentUserId);
+        
         const recommendations = await API.getGroupSuggestions(state.currentUserId);
         const allGroups = await API.getGroups();
         
@@ -488,9 +633,11 @@ function createGroupCard(group, isRecommended = false) {
     }
     
     // Check if current user is inside this group
-    // We fetch members dynamically or check local mock representation (we'll fetch or simulate check)
-    // For visual simplicity, we'll store active memberships. Let's make an API call trigger.
-    const isJoined = false; // Resolved in JS or standard state
+    const isJoined = state.userGroupIds.includes(group.id);
+    
+    const buttonHTML = isJoined
+        ? `<button class="btn btn-secondary btn-leave-group" data-id="${group.id}">Leave Group Circle</button>`
+        : `<button class="btn btn-secondary btn-join-group" data-id="${group.id}">Join Group Circle</button>`;
     
     card.innerHTML = `
         <div class="group-card-header">
@@ -506,13 +653,9 @@ function createGroupCard(group, isRecommended = false) {
         <p class="group-topic-label">Topic: ${group.topic}</p>
         <p class="group-desc">${group.description}</p>
         <p class="group-creator">Created by: ${group.creator_name || 'System'}</p>
-        <button class="btn btn-secondary btn-join-group" data-id="${group.id}">
-            Join Group Circle
-        </button>
+        ${buttonHTML}
     `;
     
-    // Add real join status visual check if user matches creators or if we implement user state
-    // Let's implement active state later in click handlers.
     return card;
 }
 
@@ -598,6 +741,18 @@ function renderFollowUpDraft(meetingId, draftText) {
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
+     
+    document
+    .getElementById('eventSelect')
+    .addEventListener('change', function () {
+
+        if (this.value === 'new_event') {
+
+            document.getElementById('newEventName').value = '';
+
+            openModal('event-modal');
+        }
+    });
     // 2. Tab Navigation clicks
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
@@ -606,6 +761,15 @@ document.addEventListener('DOMContentLoaded', () => {
             target.classList.add('active');
             state.activeTab = target.dataset.tab;
             await refreshActiveTab();
+            document
+            .getElementById('eventSelect')
+            .addEventListener('change', async function () {
+
+                if (this.value === 'new_event') {
+
+                    openModal('event-modal');
+                }
+            });
         });
     });
 
@@ -767,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const starBtn = e.target.closest('.star-btn');
         if (starBtn) {
             const parent = starBtn.closest('.feedback-stars');
-            const otherId = parseInt(parent.dataset.other-id || parent.getAttribute('data-other-id'));
+            const otherId = parseInt(parent.getAttribute('data-other-id'));
             const score = parseInt(starBtn.dataset.star);
             
             try {
@@ -819,16 +983,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tab-groups').addEventListener('click', async (e) => {
         const joinBtn = e.target.closest('.btn-join-group');
         if (joinBtn) {
-            const groupId = joinBtn.dataset.id;
+            const groupId = parseInt(joinBtn.dataset.id);
             try {
                 await API.joinGroup(groupId, state.currentUserId);
                 showToast('Successfully joined group circle!', 'success');
                 
-                // Toggle Button Display
-                joinBtn.textContent = 'Leave Group Circle';
-                joinBtn.className = 'btn btn-secondary btn-leave-group';
-                
-                // Reload list to get updated member count
+                // Reload groups to get updated member count and button state
                 await loadGroups();
             } catch (err) {
                 showToast('Failed to join group', 'error');
@@ -840,14 +1000,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tab-groups').addEventListener('click', async (e) => {
         const leaveBtn = e.target.closest('.btn-leave-group');
         if (leaveBtn) {
-            const groupId = leaveBtn.dataset.id;
+            const groupId = parseInt(leaveBtn.dataset.id);
             try {
                 await API.leaveGroup(groupId, state.currentUserId);
                 showToast('Left group circle.', 'info');
                 
-                leaveBtn.textContent = 'Join Group Circle';
-                leaveBtn.className = 'btn btn-secondary btn-join-group';
-                
+                // Reload groups to get updated member count and button state
                 await loadGroups();
             } catch (err) {
                 showToast('Failed to leave group', 'error');

@@ -117,10 +117,12 @@ document.getElementById("signupForm").addEventListener("submit", async function(
         bio: document.getElementById("bio").value,
         interests: document.getElementById("interests").value,
         tech_needs: document.getElementById("techNeeds").value,
-        looking_for: document.getElementById("lookingFor").value
+        looking_for: document.getElementById("lookingFor").value,
+        email: document.getElementById("email").value,
+        password: password
     };
 
-    const response = await fetch("/api/profiles", {
+    const response = await fetch("/api/signup", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -131,7 +133,8 @@ document.getElementById("signupForm").addEventListener("submit", async function(
     if (response.ok) {
         window.location.href = "/dashboard";
     } else {
-        alert("Signup failed.");
+        const data = await response.json();
+        alert(data.detail || "Signup failed.");
     }
 });
 </script>

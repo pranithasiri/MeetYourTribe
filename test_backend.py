@@ -75,13 +75,20 @@ class TestMatchmakerBackend(unittest.TestCase):
 
     def test_api_session_endpoints(self):
         """Test session state API endpoints."""
+        # Log in first to set session cookie
+        login_res = self.client.post("/api/login", json={
+            "email": "elena.rostova@deepmind.example.com",
+            "password": "password123"
+        })
+        self.assertEqual(login_res.status_code, 200)
+
         # Get current session
         res = self.client.get("/api/session")
         self.assertEqual(res.status_code, 200)
         self.assertIn("current_user_id", res.json())
         
         # Switch session
-        res = self.client.post("/api/session/3")
+        res = self.client.post("/api/act-as/3")
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()["current_user_id"], 3)
         
@@ -90,7 +97,7 @@ class TestMatchmakerBackend(unittest.TestCase):
         self.assertEqual(res.json()["current_user_id"], 3)
         
         # Revert session back to 1
-        self.client.post("/api/session/1")
+        self.client.post("/api/act-as/1")
 
     def test_api_matches_endpoint(self):
         """Test matches retrieval via HTTP API."""

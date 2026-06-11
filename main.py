@@ -1,5 +1,5 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -21,7 +21,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CURRENT_USER_ID = 1
+
+# ---------- HELPER: Get current user from cookie ----------
+
+def get_current_user_id(request: Request) -> int:
+    """Read the logged-in user ID from the browser cookie.
+    Each browser/incognito window has its own independent cookie,
+    so multiple users can be logged in simultaneously."""
+    user_id = request.cookies.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Not logged in")
+    try:
+        return int(user_id)
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid session")
 
 
 # ---------------- MODELS ----------------
@@ -40,10 +53,26 @@ class ProfileUpdate(ProfileCreate):
     pass
 
 
+class SignupRequest(BaseModel):
+    name: str
+    company: str
+    job_title: str
+    bio: str
+    interests: str
+    tech_needs: str
+    looking_for: str
+    email: str
+    password: str
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str
 
+class JoinEventRequest(BaseModel):
+    profile_id: int
+    event_name: str
+    location: str = ""
 
 class MeetingCreate(BaseModel):
     inviter_id: int
@@ -65,6 +94,10 @@ class GroupCreate(BaseModel):
     topic: str
     description: str
     created_by: int
+
+
+class GroupMemberAction(BaseModel):
+    profile_id: int
 
 
 class FollowUpRequest(BaseModel):
@@ -91,43 +124,140 @@ def signup_page():
 
 
 @app.get("/dashboard")
-def dashboard():
+def dashboard(request: Request):
+    # If not logged in, redirect to login page
+    user_id = request.cookies.get("user_id")
+    if not user_id:
+        return RedirectResponse(url="/login")
     return FileResponse("static/index.html")
+
 
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-# ---------------- AUTH ----------------
+# ---------------- AUTH (cookie-based per-browser sessions) ----------------
 
 @app.post("/api/login")
-def login(req: LoginRequest):
-    global CURRENT_USER_ID
+def login(req: LoginRequest, response: Response):
+    profile = database.get_profile_by_email(req.email)
 
-    profiles = database.get_profiles()
+    if not profile:
+        raise HTTPException(status_code=401, detail="No account found with that email")
 
-    if not profiles:
-        raise HTTPException(status_code=404, detail="No profiles found")
+    if profile.get("password") != req.password:
+        raise HTTPException(status_code=401, detail="Invalid password")
 
-    CURRENT_USER_ID = profiles[0]["id"]
+    # Set cookie for THIS browser — other browsers/incognito keep their own cookie
+    response.set_cookie(
+        key="user_id",
+        value=str(profile["id"]),
+        httponly=False,   # allow JS to read for client-side logic
+        samesite="lax",
+        max_age=86400     # 24 hours
+    )
 
     return {
         "status": "success",
-        "current_user_id": CURRENT_USER_ID
+        "current_user_id": profile["id"],
+        "name": profile["name"]
+    }
+
+@app.post("/api/events/join")
+def join_event(req: JoinEventRequest):
+
+    event_id = database.join_event(
+        req.profile_id,
+        req.event_name,
+        req.location
+    )
+
+    return {
+        "success": True,
+        "event_id": event_id
+    }
+
+@app.post("/api/signup")
+def signup(req: SignupRequest, response: Response):
+    # Check if email already exists
+    existing = database.get_profile_by_email(req.email)
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
+
+    new_id = database.create_profile(
+        name=req.name,
+        company=req.company,
+        job_title=req.job_title,
+        bio=req.bio,
+        interests=req.interests,
+        tech_needs=req.tech_needs,
+        looking_for=req.looking_for,
+        email=req.email,
+        password=req.password
+    )
+
+    # Set cookie for THIS browser
+    response.set_cookie(
+        key="user_id",
+        value=str(new_id),
+        httponly=False,
+        samesite="lax",
+        max_age=86400
+    )
+
+    return {
+        "status": "success",
+        "profile_id": new_id
     }
 
 
 @app.get("/api/session")
-def get_session():
-    return {"current_user_id": CURRENT_USER_ID}
+def get_session(request: Request):
+    """Returns the current user ID from this browser's cookie."""
+    uid = get_current_user_id(request)
+    return {"current_user_id": uid}
+
+@app.get("/api/events")
+def get_all_events():
+    return database.get_events()
+
+
+@app.post("/api/act-as/{profile_id}")
+def act_as(profile_id: int, response: Response):
+    """Switch to another profile (for demo/testing purposes)."""
+    profile = database.get_profile(profile_id)
+
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+
+    response.set_cookie(
+        key="user_id",
+        value=str(profile_id),
+        httponly=False,
+        samesite="lax",
+        max_age=86400
+    )
+
+    return {
+        "status": "success",
+        "current_user_id": profile_id
+    }
+
+
+@app.post("/api/logout")
+def logout(response: Response):
+    """Clear the session cookie and log out."""
+    response.delete_cookie(key="user_id")
+    return {"status": "success"}
 
 
 # ---------------- PROFILES ----------------
 
 @app.get("/api/profiles")
-def get_profiles(active: Optional[bool] = False):
+def get_profiles(request: Request, active: Optional[bool] = False):
     if active:
-        return database.get_profiles(active_id=CURRENT_USER_ID)
+        uid = get_current_user_id(request)
+        return database.get_profiles(active_id=uid)
     return database.get_profiles()
 
 
@@ -140,9 +270,7 @@ def get_profile(profile_id: int):
 
 
 @app.post("/api/profiles")
-def create_profile(profile: ProfileCreate):
-    global CURRENT_USER_ID
-
+def create_profile(profile: ProfileCreate, response: Response):
     new_id = database.create_profile(
         name=profile.name,
         company=profile.company,
@@ -153,7 +281,14 @@ def create_profile(profile: ProfileCreate):
         looking_for=profile.looking_for
     )
 
-    CURRENT_USER_ID = new_id
+    # Auto-login the new profile
+    response.set_cookie(
+        key="user_id",
+        value=str(new_id),
+        httponly=False,
+        samesite="lax",
+        max_age=86400
+    )
 
     return {
         "status": "success",
@@ -185,6 +320,12 @@ def update_profile(profile_id: int, profile: ProfileUpdate):
 @app.get("/api/profiles/{profile_id}/matches")
 def get_matches(profile_id: int):
     return matcher.compute_profile_matches(profile_id)
+
+
+@app.get("/api/profiles/{profile_id}/groups")
+def get_user_groups(profile_id: int):
+    """Return list of group IDs that a user belongs to."""
+    return database.get_user_groups(profile_id)
 
 
 # ---------------- FEEDBACK ----------------
@@ -252,6 +393,18 @@ def create_group(group: GroupCreate):
     return {"status": "success", "group_id": group_id}
 
 
+@app.post("/api/groups/{group_id}/join")
+def join_group(group_id: int, payload: GroupMemberAction):
+    database.join_group(group_id, payload.profile_id)
+    return {"status": "success", "group_id": group_id}
+
+
+@app.post("/api/groups/{group_id}/leave")
+def leave_group(group_id: int, payload: GroupMemberAction):
+    database.leave_group(group_id, payload.profile_id)
+    return {"status": "success", "group_id": group_id}
+
+
 @app.get("/api/profiles/{profile_id}/group-suggestions")
 def get_group_suggestions(profile_id: int):
     return matcher.suggest_groups_for_profile(profile_id)
@@ -261,13 +414,36 @@ def get_group_suggestions(profile_id: int):
 
 @app.post("/api/followup")
 def generate_followup(req: FollowUpRequest):
+    # Fetch actual profile and meeting objects (not just IDs)
+    profile_from = database.get_profile(req.profile_from_id)
+    profile_to = database.get_profile(req.profile_to_id)
+    meeting = database.get_meeting(req.meeting_id)
+
+    if not profile_from or not profile_to:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
     return {
         "followup_email": matcher.generate_followup_email(
-            req.profile_from_id,
-            req.profile_to_id,
-            req.meeting_id
+            profile_from,
+            profile_to,
+            meeting
         )
     }
+
+
+# ---------------- CSV EXPORT ----------------
+
+@app.get("/api/export/csv")
+def export_csv():
+    """Download all profile data as a CSV file."""
+    database.export_profiles_csv()
+    return FileResponse(
+        database.CSV_PATH,
+        media_type="text/csv",
+        filename="profiles_data.csv"
+    )
 
 
 if __name__ == "__main__":

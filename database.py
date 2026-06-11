@@ -1,7 +1,9 @@
 import sqlite3
 import os
+import csv
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "conference.db")
+CSV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "profiles_data.csv")
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -17,6 +19,8 @@ def init_db():
     CREATE TABLE IF NOT EXISTS profiles (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
+        email TEXT UNIQUE,
+        password TEXT,
         company TEXT,
         job_title TEXT,
         bio TEXT,
@@ -26,7 +30,27 @@ def init_db():
         avatar_url TEXT
     )
     """)
-    
+    # Create Events Table
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    location TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+""")
+
+    # Create Event Members Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS event_members (
+        event_id INTEGER,
+        profile_id INTEGER,
+        joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (event_id, profile_id),
+        FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+        FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+    )
+    """)
     # Create Matches Table
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS matches (
@@ -82,12 +106,27 @@ def init_db():
     )
     """)
 
+    # Create Messages Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER,
+        receiver_id INTEGER,
+        message TEXT,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (sender_id) REFERENCES profiles(id) ON DELETE CASCADE,
+        FOREIGN KEY (receiver_id) REFERENCES profiles(id) ON DELETE CASCADE
+    )
+    """)
+
     # Seed mock data if profiles is empty
     cursor.execute("SELECT COUNT(*) FROM profiles")
     if cursor.fetchone()[0] == 0:
         seed_profiles = [
             (
                 "Dr. Elena Rostova",
+                "elena.rostova@deepmind.example.com",
+                "password123",
                 "DeepMind Technologies",
                 "Principal Research Scientist",
                 "Working on Large Language Model alignment, RLHF, and agentic workflows. Former researcher at OpenAI and MIT AI Lab.",
@@ -98,6 +137,8 @@ def init_db():
             ),
             (
                 "Aravind Reddy",
+                "aravind.reddy@apexventures.example.com",
+                "password123",
                 "Apex Ventures",
                 "General Partner",
                 "Investing in seed and early-stage generative AI startups. Passionate about developer tools and vertical SaaS applications using LLMs.",
@@ -108,6 +149,8 @@ def init_db():
             ),
             (
                 "Sarah Jenkins",
+                "sarah.jenkins@medtech.example.com",
+                "password123",
                 "MedTech Solutions Inc.",
                 "Director of AI Strategy & Clinical Products",
                 "Driving AI integration into digital healthcare. Focused on clinical decision support, HIPAA-compliant patient report summarization, and medical imaging analysis.",
@@ -118,6 +161,8 @@ def init_db():
             ),
             (
                 "Hiroshi Tanaka",
+                "hiroshi.tanaka@canvasflow.example.com",
+                "password123",
                 "CanvasFlow AI",
                 "Lead Frontend & UX Architect",
                 "Building interactive playgrounds and visual design systems for prompt engineering, model tuning, and multi-modal canvas layouts.",
@@ -128,6 +173,8 @@ def init_db():
             ),
             (
                 "Liam O'Connor",
+                "liam.oconnor@agenticlabs.example.com",
+                "password123",
                 "Agentic Labs",
                 "Co-Founder & CTO",
                 "Building a developer platform for autonomous AI software engineers. Focused on code synthesis, repository editing, and local execution sandboxes.",
@@ -138,6 +185,8 @@ def init_db():
             ),
             (
                 "Emily Chen",
+                "emily.chen@orbitscale.example.com",
+                "password123",
                 "OrbitScale Cloud",
                 "Principal Solutions Architect",
                 "Specializing in distributed computing, multi-GPU model serving, vLLM optimization, and green computing strategies for massive AI inference clusters.",
@@ -148,6 +197,8 @@ def init_db():
             ),
             (
                 "Marcus Vance",
+                "marcus.vance@vancepartners.example.com",
+                "password123",
                 "Vance & Partners Legal",
                 "Managing Partner - Tech & AI Policy",
                 "Advising tech giants and fast-growing startups on AI regulations, copyright compliance in dataset curation, and data privacy compliance.",
@@ -158,6 +209,8 @@ def init_db():
             ),
             (
                 "Priya Sharma",
+                "priya.sharma@omniretail.example.com",
+                "password123",
                 "OmniRetail Global",
                 "Senior Director of Engineering",
                 "Integrating AI capabilities into customer support automation, catalog search systems, and personalization models for multi-million user retail apps.",
@@ -169,8 +222,8 @@ def init_db():
         ]
         
         cursor.executemany("""
-        INSERT INTO profiles (name, company, job_title, bio, interests, tech_needs, looking_for, avatar_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO profiles (name, email, password, company, job_title, bio, interests, tech_needs, looking_for, avatar_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, seed_profiles)
         
         # Seed initial groups
@@ -195,6 +248,9 @@ def init_db():
 
     conn.commit()
     conn.close()
+    
+    # Export seed profiles to CSV on startup
+    export_profiles_csv()
 
 # Helper DB Functions
 
@@ -218,18 +274,33 @@ def get_profile(profile_id):
     conn.close()
     return dict(row) if row else None
 
-def create_profile(name, company, job_title, bio, interests, tech_needs, looking_for, avatar_url=None):
+def get_profile_by_email(email):
+    """Fetch a profile by email address for login validation."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM profiles WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def create_profile(name, company, job_title, bio, interests, tech_needs, looking_for, email=None, password=None, avatar_url=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     if not avatar_url:
         avatar_url = f"https://api.dicebear.com/7.x/adventurer/svg?seed={name.replace(' ', '')}"
     cursor.execute("""
-    INSERT INTO profiles (name, company, job_title, bio, interests, tech_needs, looking_for, avatar_url)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (name, company, job_title, bio, interests, tech_needs, looking_for, avatar_url))
+    INSERT INTO profiles (name, email, password, company, job_title, bio, interests, tech_needs, looking_for, avatar_url)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (name, email, password, company, job_title, bio, interests, tech_needs, looking_for, avatar_url))
     new_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+       
+    
+    # Auto-export to CSV on every new profile creation
+    export_profiles_csv()
+    
     return new_id
 
 def update_profile(profile_id, name, company, job_title, bio, interests, tech_needs, looking_for):
@@ -242,6 +313,10 @@ def update_profile(profile_id, name, company, job_title, bio, interests, tech_ne
     """, (name, company, job_title, bio, interests, tech_needs, looking_for, profile_id))
     conn.commit()
     conn.close()
+    
+    # Auto-export to CSV on profile update
+    export_profiles_csv()
+    
     return True
 
 def get_cached_matches(profile_id):
@@ -327,6 +402,23 @@ def get_meetings(profile_id):
     conn.close()
     return meetings
 
+def get_meeting(meeting_id):
+    """Fetch a single meeting by ID."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT m.*, 
+           p1.name as inviter_name, p1.company as inviter_company, p1.avatar_url as inviter_avatar,
+           p2.name as invitee_name, p2.company as invitee_company, p2.avatar_url as invitee_avatar
+    FROM meetings m
+    JOIN profiles p1 ON m.inviter_id = p1.id
+    JOIN profiles p2 ON m.invitee_id = p2.id
+    WHERE m.id = ?
+    """, (meeting_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
 def respond_meeting(meeting_id, status):
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -338,6 +430,102 @@ def respond_meeting(meeting_id, status):
     conn.commit()
     conn.close()
     return True
+
+def get_events():
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM events
+        ORDER BY name
+    """)
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+def join_event(profile_id, event_name, location=""):
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id FROM events WHERE name = ?",
+        (event_name,)
+    )
+
+    event = cursor.fetchone()
+
+    if event:
+        event_id = event["id"]
+    else:
+        cursor.execute(
+            """
+            INSERT INTO events (name, location)
+            VALUES (?, ?)
+            """,
+            (event_name, location)
+        )
+
+    event_id = cursor.lastrowid
+
+    cursor.execute("""
+        INSERT OR IGNORE INTO event_members
+        (event_id, profile_id)
+        VALUES (?, ?)
+    """, (event_id, profile_id))
+
+    conn.commit()
+    conn.close()
+
+    return event_id
+def get_user_events(profile_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT e.*
+        FROM events e
+        JOIN event_members em
+        ON e.id = em.event_id
+        WHERE em.profile_id = ?
+    """, (profile_id,))
+
+    events = [dict(row) for row in cursor.fetchall()]
+
+    conn.close()
+    return events
+
+def get_profiles_in_event(event_id, exclude_id=None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if exclude_id:
+        cursor.execute("""
+            SELECT p.*
+            FROM profiles p
+            JOIN event_members em
+            ON p.id = em.profile_id
+            WHERE em.event_id = ?
+            AND p.id != ?
+        """, (event_id, exclude_id))
+    else:
+        cursor.execute("""
+            SELECT p.*
+            FROM profiles p
+            JOIN event_members em
+            ON p.id = em.profile_id
+            WHERE em.event_id = ?
+        """, (event_id,))
+
+    profiles = [dict(row) for row in cursor.fetchall()]
+
+    conn.close()
+    return profiles
 
 def get_groups():
     conn = get_db_connection()
@@ -405,5 +593,60 @@ def get_group_members(group_id):
     conn.close()
     return members
 
+def get_user_groups(profile_id):
+    """Return list of group IDs that a profile belongs to."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT group_id FROM group_members WHERE profile_id = ?
+    """, (profile_id,))
+    group_ids = [row['group_id'] for row in cursor.fetchall()]
+    conn.close()
+    return group_ids
+
+def get_messages(user_id, other_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT * FROM messages 
+    WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+    ORDER BY timestamp ASC
+    """, (user_id, other_id, other_id, user_id))
+    messages = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return messages
+
+def save_message(sender_id, receiver_id, message):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO messages (sender_id, receiver_id, message)
+    VALUES (?, ?, ?)
+    """, (sender_id, receiver_id, message))
+    msg_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return msg_id
+
+def export_profiles_csv():
+    """Export all profiles to a CSV file for persistent storage."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, email, company, job_title, bio, interests, tech_needs, looking_for, avatar_url FROM profiles")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    if not rows:
+        return
+    
+    with open(CSV_PATH, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['id', 'name', 'email', 'company', 'job_title', 'bio', 'interests', 'tech_needs', 'looking_for', 'avatar_url'])
+        for row in rows:
+            writer.writerow([row['id'], row['name'], row['email'], row['company'], row['job_title'],
+                           row['bio'], row['interests'], row['tech_needs'], row['looking_for'], row['avatar_url']])
+
 # Automatically initialize DB when module is imported or run directly
 init_db()
+
+
